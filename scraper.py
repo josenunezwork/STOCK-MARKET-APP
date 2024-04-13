@@ -18,6 +18,8 @@ def download_stock_data(ticker, start_date=None, end_date=None):
     if end_date is None:
         end_date = datetime.now().strftime('%Y-%m-%d')
     try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
         # Download stock data using yfinance api
         data = yf.download(ticker, start=start_date, end=end_date)
         # Check for missing data
@@ -38,17 +40,24 @@ def download_stock_data(ticker, start_date=None, end_date=None):
         data.rename(columns=column_mapping, inplace=True)
         # Check the last downloaded date
         last_date = data['date'].max()
+        # Check the last downloaded date
+        last_date = data['date'].max()
+
         # Check for gaps between last downloaded date and current date
         current_date = datetime.now().strftime('%Y-%m-%d')
-        if last_date < current_date:
+        if last_date < pd.to_datetime(current_date):
+            # Convert last_date to datetime object
+            last_date_dt = last_date.to_pydatetime()
+
             # Download the missing data from the last downloaded date to the current date
-            missing_data = yf.download(ticker, start=last_date, end=current_date)
+            missing_data = yf.download(ticker, start=last_date_dt, end=current_date)
+
             # Check if missing data is not empty
             if not missing_data.empty:
                 # Reset the index of missing data
                 missing_data.reset_index(inplace=True)
                 missing_data.rename(columns=column_mapping, inplace=True)
-                
+
                 # Concatenate the missing data with the original data
                 data = pd.concat([data, missing_data], ignore_index=True)
         return data
