@@ -9,6 +9,12 @@ from torchvision.models import resnet18
 import numpy as np
 
 
+from torchvision.models import ResNet18_Weights
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+
 def preprocess_data(df):
     """
     Preprocess the stock data for training.
@@ -49,7 +55,7 @@ def preprocess_data(df):
     # Reshape the data
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
     
-    return X, y
+    return X, y, scaler
 
 def split_data(X, y, test_size=0.2):
     """
@@ -65,11 +71,10 @@ def split_data(X, y, test_size=0.2):
     """
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=42)
     return X_train, X_val, y_train, y_val
-
 class StockPredictionModel(nn.Module):
     def __init__(self, input_shape):
         super(StockPredictionModel, self).__init__()
-        self.resnet = resnet18(pretrained=True)
+        self.resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
         self.resnet.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 1), stride=(2, 1), padding=(3, 0), bias=False)
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, 1)
         
@@ -97,11 +102,13 @@ def train_model(model, X_train, y_train, X_val, y_val, epochs=100, batch_size=32
     """
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    if device is not None:
+        model = model.to(device)
     
-    train_dataset = torch.utils.data.TensorDataset(torch.tensor(X_train).float(), torch.tensor(y_train).float())
+    train_dataset = torch.utils.data.TensorDataset(torch.tensor(X_train).float(), torch.tensor(y_train).float().unsqueeze(1))
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     
-    val_dataset = torch.utils.data.TensorDataset(torch.tensor(X_val).float(), torch.tensor(y_val).float())
+    val_dataset = torch.utils.data.TensorDataset(torch.tensor(X_val).float(), torch.tensor(y_val).float().unsqueeze(1))
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size)
     
     train_loss_history = []
@@ -156,6 +163,7 @@ def load_model(filename='stock_prediction_model.pth'):
     Returns:
         torch.nn.Module: Loaded PyTorch model.
     """
+    input_shape = (60, 1, 1)
     model = StockPredictionModel(input_shape)
     model.load_state_dict(torch.load(filename))
     return model
@@ -169,7 +177,7 @@ if __name__ == '__main__':
     
     if stock_data is not None:
         # Preprocess the stock data
-        X, y = preprocess_data(stock_data)
+        X, y, scaler = preprocess_data(stock_data)
         
         # Reshape the data to match the input shape of the model
         X = X.reshape((X.shape[0], X.shape[1], 1, 1))
