@@ -1,0 +1,42 @@
+<!-- stock_data.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download and Store Stock Data</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#stock-form').submit(function(event) {
+                event.preventDefault();
+                var formData = $(this).serialize();
+                $.ajax({
+                    url: '/stock_data',
+                    method: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        alert(response.message);
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error: ' + error);
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Download and Store Stock Data</h1>
+    <form id="stock-form">
+        <label for="ticker">Ticker:</label>
+        <input type="text" id="ticker" name="ticker" required><br>
+        
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required><br>
+        
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" required><br>
+        
+        <input type="submit" value="Download and Store">
+    </form>
+</body>
+</html>
